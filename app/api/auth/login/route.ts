@@ -10,6 +10,7 @@ interface User {
   email: string;
   password: string;
   name: string;
+  role: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
     }
 
-    const result = await pool.query('SELECT id, email, password, name FROM users WHERE email = ?', [email]);
+    const result = await pool.query('SELECT id, email, password, name, role FROM users WHERE email = ?', [email]);
     const users = result[0] as User[];
 
     if (!users || users.length === 0) {
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     const token = jwt.sign(
-      { userId: user.id, id: user.id, email: user.email, name: user.name, role: 'user' },
+      { userId: user.id, id: user.id, email: user.email, name: user.name, role: user.role },
       JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -46,7 +47,8 @@ export async function POST(req: NextRequest) {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        role: user.role
       }
     });
 

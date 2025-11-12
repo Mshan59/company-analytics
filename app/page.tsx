@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
-import ProjectList from "@/components/Projects/ProjectList";
+import RoleBasedDashboard from "@/components/Dashboard/RoleBasedDashboard";
 
 export const metadata: Metadata = {
   title:
@@ -12,7 +12,7 @@ export default function Home() {
   return (
     <>
       <DefaultLayout>
-        <ProjectList  />
+        <RoleBasedDashboard />
       </DefaultLayout>
     </>
   );
