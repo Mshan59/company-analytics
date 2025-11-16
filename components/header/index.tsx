@@ -74,27 +74,53 @@
 //       </div>
 //     </div>
 //   );
-// };
-
-// export default Header;
-
-
-
-import React, { useState } from 'react';
 import { Bell, Calendar, ChevronLeft, ChevronRight, Search, User } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { removeToken } from '@/lib/auth';
+import { useLoader } from '@/context/LoaderContext';
+import { useState,useEffect } from 'react';
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [role, setRole] = useState<string | undefined>(undefined);
   const router = useRouter();
+  const { showLoader, hideLoader } = useLoader();
 
-  const handleLogout = () => {
-    removeToken(); // This will remove both localStorage token and cookie
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/me', { cache: 'no-store' });
+        if (!res.ok) return;
+        const me = await res.json();
+        if (!cancelled) setRole(me?.role);
+      } catch {}
+    };
+    load();
+    return () => { cancelled = true };
+  }, []);
+
+  const handleLogout = async () => {
+    showLoader('logout');
+    try {
+      // Clear server httpOnly cookie
+      await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {}
+    // Clear client token and non-httpOnly cookie
+    removeToken();
     router.push('/login');
+    setTimeout(() => hideLoader('logout'), 300);
   };
+
+  const canCreate = (() => {
+    const r = (role || '').toLowerCase();
+    return r === 'owner' || r === 'admin' || r === 'manager' || r === 'ceo' || r === 'cto' || r === 'coo' || r === 'cmo';
+  })();
 
   return (
     <div className="w-full bg-purple-900 text-white">
@@ -147,8 +173,19 @@ const Header = () => {
               <Calendar className="w-5 h-5" />
             </button>
             
-            {/* New Button */}
-            <button className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded-lg">
+            {/* Role Badge */}
+            {role && (
+              <span className="px-2 py-1 text-xs rounded-md bg-purple-800 border border-purple-600 opacity-90">
+                {role}
+              </span>
+            )}
+
+            {/* New Button (gated) */}
+            <button
+              className={`px-4 py-2 rounded-lg ${canCreate ? 'bg-purple-700 hover:bg-purple-600 text-white' : 'bg-purple-700/40 text-white/60 cursor-not-allowed'}`}
+              disabled={!canCreate}
+              title={canCreate ? 'Create new item' : 'Insufficient permissions'}
+            >
               New
             </button>
             

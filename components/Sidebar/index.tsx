@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, FileText, CheckSquare, Users, Grid } from 'lucide-react';
 import Link from 'next/link';
 
@@ -16,6 +16,19 @@ interface MenuItem {
 
 const Sidebar: React.FC = () => {
   const [isOpen, setIsOpen] = useState<boolean>(true);
+  const [canViewBudget, setCanViewBudget] = useState<boolean>(false);
+
+  useEffect(() => {
+    const loadMe = async () => {
+      try {
+        const res = await fetch('/api/me', { cache: 'no-store' });
+        if (!res.ok) return;
+        const me = await res.json();
+        setCanViewBudget(!!me?.permissions?.canViewBudget);
+      } catch {}
+    };
+    loadMe();
+  }, []);
 
   const menuItems: MenuItem[] = [
     {
@@ -32,6 +45,11 @@ const Sidebar: React.FC = () => {
       icon: <CheckSquare size={20} />,
       label: "Tasks",
       route: "/tasks",
+    },
+    {
+      icon: <FileText size={20} />,
+      label: "Timesheets",
+      route: "/timesheets",
     },
     {
       icon: <FileText size={20} />,
@@ -79,6 +97,12 @@ const Sidebar: React.FC = () => {
             <span>{item.label}</span>
           </Link>
         ))}
+        {canViewBudget && (
+          <Link href="/budget" className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-gray-100 text-gray-700">
+            <span><FileText size={20} className="text-emerald-600" /></span>
+            <span>Budget</span>
+          </Link>
+        )}
       </div>
 
       {/* Teams section */}

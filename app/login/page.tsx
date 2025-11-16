@@ -5,12 +5,17 @@ import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { setToken, verifyToken } from '@/lib/auth';
+import { useLoader } from '@/context/LoaderContext';
+
 // import Image from 'next/image';
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const { showLoader, hideLoader } = useLoader();
+
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -40,7 +45,8 @@ const LoginPage = () => {
 
   const handleSubmit = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
-  
+    setSubmitting(true);
+    showLoader('login');
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -65,6 +71,9 @@ const LoginPage = () => {
     } catch (error) {
       console.error('Login error:', error);
       alert('An error occurred during login. Please try again.');
+    } finally {
+      hideLoader('login');
+      setSubmitting(false);
     }
   };
   
@@ -176,8 +185,9 @@ const LoginPage = () => {
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md 
                      text-sm font-medium text-black bg-gray-100 hover:bg-gray-200 
                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
+            disabled={submitting}
           >
-            Sign in
+            {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 

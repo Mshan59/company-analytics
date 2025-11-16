@@ -1,21 +1,26 @@
 // File: app/api/teams/route.ts
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
-import { Role, isRole } from "@/models/roles";
 
-interface User {
+interface TeamRow {
   id: number;
   name: string;
   email: string;
-  role: Role;
+  role: string;
+  roleId: number;
   added_on: string;
 }
 
 // Fetch all teams
 export async function GET(): Promise<NextResponse> {
   try {
-    const [rows] = await pool.query("SELECT * FROM teams");
-    return NextResponse.json(rows as User[]);
+    const [rows] = await pool.query(
+      `SELECT t.id, t.name, t.email, r.name AS role, r.id AS roleId, t.added_on
+       FROM teams t
+       JOIN roles r ON r.id = t.role_id
+       ORDER BY t.id DESC`
+    );
+    return NextResponse.json(rows as TeamRow[]);
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Error fetching teams" }, { status: 500 });
@@ -25,21 +30,25 @@ export async function GET(): Promise<NextResponse> {
 // Insert a new user
 export async function POST(req: Request): Promise<NextResponse> {
   try {
-    const { name, email, role } = await req.json();
+    const { name, email, roleId } = await req.json();
     
     if (!name || !email) {
       return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
     }
-    
-    // Use the role provided or default to a sensible role if not specified
-    const userRole: Role = isRole(role) ? role : 'Frontend Developer';
-    if (!isRole(userRole)) {
-      return NextResponse.json({ error: "Invalid role specified" }, { status: 400 });
+
+    if (!roleId || Number.isNaN(Number(roleId))) {
+      return NextResponse.json({ error: "roleId is required" }, { status: 400 });
+    }
+
+    // Validate roleId exists
+    const [r] = await pool.query("SELECT id, name FROM roles WHERE id = ?", [roleId]);
+    if ((r as any[]).length === 0) {
+      return NextResponse.json({ error: "Invalid roleId" }, { status: 400 });
     }
 
     const [result] = await pool.query(
-      "INSERT INTO teams (name, email, role) VALUES (?, ?, ?)", 
-      [name, email, userRole]
+      "INSERT INTO teams (name, email, role_id) VALUES (?, ?, ?)", 
+      [name, email, roleId]
     );
     
     // Get the timestamp from the database for the new record
@@ -50,7 +59,8 @@ export async function POST(req: Request): Promise<NextResponse> {
       id: (result as any).insertId, 
       name, 
       email, 
-      role: userRole,
+      role: (r as any[])[0].name,
+      roleId: Number(roleId),
       added_on
     });
   } catch (error) {

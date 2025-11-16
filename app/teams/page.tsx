@@ -8,15 +8,12 @@
 //     </DefaultLayout>
 //   </div>
 // }
-
-// export default Page
-
-
 "use client";
 
 import DefaultLayout from '@/components/Layouts/DefaultLayout';
 import { NextPage } from 'next';
 import { useEffect, useState, ChangeEvent, FormEvent } from "react";
+
 // import { User } from "@/models/user";
 
 // Update User type to match the database schema
@@ -24,7 +21,8 @@ type User = {
   id: string | number;
   name: string;
   email: string;
-  role: 'developer' | 'HR' | 'Sr developer' | 'Project manager';
+  role: string;
+  roleId: number;
   added_on: string;
 };
 
@@ -32,7 +30,7 @@ type FormDataType = {
   id: string | number;
   name: string;
   email: string;
-  role: string;
+  roleId: number | '';
 };
 
 const Page: NextPage = () => {
@@ -41,18 +39,43 @@ const Page: NextPage = () => {
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [canAddTeam, setCanAddTeam] = useState<boolean>(false);
+  const [roleOptions, setRoleOptions] = useState<Array<{ id: number; name: string }>>([]);
   const [formData, setFormData] = useState<FormDataType>({
     id: "",
     name: "",
     email: "",
-    role: "developer", // Default role
+    roleId: "",
   });
-
-  // Role options based on the ENUM in the database
-  const roleOptions = ['developer', 'HR', 'Sr developer', 'Project manager'];
 
   useEffect(() => {
     fetchTeams();
+    // Fetch permission from /api/me
+    const loadMe = async () => {
+      try {
+        const res = await fetch('/api/me', { cache: 'no-store' });
+        if (!res.ok) return;
+        const me = await res.json();
+        setCanAddTeam(!!me?.permissions?.canAddTeam);
+      } catch {}
+    };
+    loadMe();
+    // Load roles from API and exclude CEO
+    const loadRoles = async () => {
+      try {
+        const res = await fetch('/api/roles', { cache: 'no-store' });
+        if (!res.ok) return;
+        const rows: Array<{ id: number; name: string }> = await res.json();
+        const opts = rows.filter(r => r.name?.toLowerCase() !== 'ceo');
+        setRoleOptions(opts);
+        // Ensure default roleId is valid
+        setFormData(prev => ({
+          ...prev,
+          roleId: (typeof prev.roleId === 'number' && opts.some(o => o.id === prev.roleId)) ? prev.roleId : (opts[0]?.id ?? '')
+        }));
+      } catch {}
+    };
+    loadRoles();
   }, []);
 
   const fetchTeams = async () => {
@@ -73,22 +96,26 @@ const Page: NextPage = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'roleId' ? (value === '' ? '' : Number(value)) : value,
     }));
   };
 
   const resetForm = () => {
-    setFormData({ id: "", name: "", email: "", role: "developer" });
+    setFormData({ id: "", name: "", email: "", roleId: roleOptions[0]?.id ?? '' });
     setCurrentUser(null);
   };
 
   const openForm = (user: User | null = null) => {
+    if (!canAddTeam) {
+      alert('You do not have permission to add or edit team members.');
+      return;
+    }
     if (user) {
       setFormData({ 
         id: user.id, 
         name: user.name, 
         email: user.email,
-        role: user.role
+        roleId: user.roleId
       });
       setCurrentUser(user);
     } else {
@@ -110,10 +137,15 @@ const Page: NextPage = () => {
     const endpoint = currentUser ? `/api/teams/${formData.id}` : "/api/teams";
 
     try {
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        roleId: formData.roleId,
+      };
       const response = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error("Failed to save user");
 
@@ -165,7 +197,9 @@ const Page: NextPage = () => {
           <h1 className="text-3xl font-bold text-gray-800">Teams Management</h1>
           <button
             onClick={() => openForm()}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
+            className={`px-4 py-2 rounded-lg shadow transition-colors focus:outline-none focus:ring-2 focus:ring-opacity-50 ${canAddTeam ? 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500' : 'bg-indigo-300 text-white/70 cursor-not-allowed'}`}
+            disabled={!canAddTeam}
+            title={canAddTeam ? 'Add team member' : 'Only Owner, Manager (Admin), or HR can add team members'}
           >
             Add New Team Member
           </button>
@@ -214,15 +248,15 @@ const Page: NextPage = () => {
                   required
                 />
                 <select
-                  name="role"
-                  value={formData.role}
+                  name="roleId"
+                  value={formData.roleId}
                   onChange={handleInputChange}
                   className="w-full mb-4 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500"
                   required
                 >
-                  {roleOptions.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
+                  {roleOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name}
                     </option>
                   ))}
                 </select>

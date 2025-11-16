@@ -54,6 +54,7 @@ import "./globals.css";
 import React from "react";
 import { LoaderProvider } from "@/context/LoaderContext";
 import { TextFormatterProvider } from "@/context/TextFormatterContext";
+import RouteLoaderClient from "@/components/common/RouteLoaderClient";
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -62,6 +63,7 @@ export default function RootLayout({
       <body suppressHydrationWarning={true}>
       <TextFormatterProvider>
         <LoaderProvider>
+          <RouteLoaderClient />
           <div className="dark:bg-boxdark-2 dark:text-bodydark">{children}</div>
         </LoaderProvider>
         </TextFormatterProvider>

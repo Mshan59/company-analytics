@@ -15,7 +15,13 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const id = params.id;
-    const [rows] = await pool.query("SELECT * FROM teams WHERE id = ?", [id]);
+    const [rows] = await pool.query(
+      `SELECT t.id, t.name, t.email, r.name AS role, r.id AS roleId, t.added_on
+       FROM teams t
+       JOIN roles r ON r.id = t.role_id
+       WHERE t.id = ?`,
+      [id]
+    );
     const teams = rows as any[];
 
     if (teams.length === 0) {
@@ -36,7 +42,7 @@ export async function PUT(
 ): Promise<NextResponse> {
   try {
     const id = params.id;
-    const { name, email, role } = await request.json();
+    const { name, email, roleId } = await request.json();
 
     if (!name || !email) {
       return NextResponse.json(
@@ -44,18 +50,19 @@ export async function PUT(
         { status: 400 }
       );
     }
-    
-    // Validate that the role is one of the allowed ENUM values if provided
-    if (role) {
-      const validRoles = ['developer', 'HR', 'Sr developer', 'Project manager'];
-      if (!validRoles.includes(role)) {
-        return NextResponse.json({ error: "Invalid role specified" }, { status: 400 });
-      }
+
+    if (!roleId || Number.isNaN(Number(roleId))) {
+      return NextResponse.json({ error: "roleId is required" }, { status: 400 });
+    }
+    // Validate roleId exists
+    const [r] = await pool.query("SELECT id FROM roles WHERE id = ?", [roleId]);
+    if ((r as any[]).length === 0) {
+      return NextResponse.json({ error: "Invalid roleId" }, { status: 400 });
     }
 
     const [result] = await pool.query(
-      "UPDATE teams SET name = ?, email = ?, role = ? WHERE id = ?",
-      [name, email, role, id]
+      "UPDATE teams SET name = ?, email = ?, role_id = ? WHERE id = ?",
+      [name, email, roleId, id]
     );
     
     const affectedRows = (result as any).affectedRows;
@@ -65,7 +72,13 @@ export async function PUT(
     }
 
     // Get the updated record from the database to include all fields
-    const [rows] = await pool.query("SELECT * FROM teams WHERE id = ?", [id]);
+    const [rows] = await pool.query(
+      `SELECT t.id, t.name, t.email, r.name AS role, r.id AS roleId, t.added_on
+       FROM teams t
+       JOIN roles r ON r.id = t.role_id
+       WHERE t.id = ?`,
+      [id]
+    );
     const updatedUser = (rows as any[])[0];
 
     return NextResponse.json(updatedUser);

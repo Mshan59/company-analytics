@@ -1,6 +1,7 @@
 import ProjectDashboard from '@/components/Projects/ProjectDashboard';
 import DefaultLayout from '@/components/Layouts/DefaultLayout';
 import { NextPage } from 'next';
+import ProjectBudgetPanel from '@/components/Projects/ProjectBudgetPanel';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -13,6 +14,7 @@ const ProjectDashboardPage = async ({ params }: PageProps) => {
   return (
     <DefaultLayout>
       <ProjectDashboard projectId={projectId} />
+      <ProjectBudgetPanel projectId={projectId} />
     </DefaultLayout>
   );
 };
